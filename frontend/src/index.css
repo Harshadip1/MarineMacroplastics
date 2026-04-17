@@ -9,95 +9,96 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  border-radius: 12px;
 }
 
-::-webkit-scrollbar-track {
-  background: #f1f5f9;
+.area-high {
+  background-color: #ef4444;
+  color: white;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #94a3b8;
-  border-radius: 4px;
+.area-medium {
+  background-color: #f59e0b;
+  color: white;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+.area-low {
+  background-color: #10b981;
+  color: white;
 }
 
-/* Map marker animations */
-.marker-pulse {
-  animation: marker-pulse 2s ease-in-out infinite;
+.card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
-@keyframes marker-pulse {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.2);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
+.gradient-text {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-/* Status badge colors */
-.status-badge {
-  @apply px-2 py-1 rounded-full text-xs font-semibold;
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.3s ease;
 }
 
-.status-detected {
-  @apply bg-blue-100 text-blue-800;
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
 }
 
-.status-drone_verified {
-  @apply bg-purple-100 text-purple-800;
+.stat-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
 }
 
-.status-assigned {
-  @apply bg-yellow-100 text-yellow-800;
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
 }
 
-.status-in_progress {
-  @apply bg-orange-100 text-orange-800;
+.zone-marker-high {
+  background: #ef4444;
+  border: 3px solid white;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.5);
 }
 
-.status-collected {
-  @apply bg-green-100 text-green-800;
+.zone-marker-medium {
+  background: #f59e0b;
+  border: 3px solid white;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.5);
 }
 
-.status-verified {
-  @apply bg-teal-100 text-teal-800;
-}
-
-/* Density colors */
-.density-low {
-  @apply text-green-600;
-}
-
-.density-medium {
-  @apply text-yellow-600;
-}
-
-.density-high {
-  @apply text-red-600;
-}
-
-/* Card hover effect */
-.card-hover {
-  @apply transition-all duration-300 hover:shadow-lg;
+.zone-marker-low {
+  background: #10b981;
+  border: 3px solid white;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.5);
 }

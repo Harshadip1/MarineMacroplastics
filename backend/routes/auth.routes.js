@@ -116,15 +116,22 @@ router.post('/login', async (req, res, next) => {
 
     const { email, password, fcmToken } = req.body;
 
+    console.log('Login attempt:', { email, password }); // Debug log
+
     // OFFLINE MODE: Use default credentials without database
     const defaultCredentials = [
-      { email: 'admin@marineplastic.com', password: 'admin123', role: 'admin', name: 'Admin User' },
-      { email: 'supervisor@marineplastic.com', password: 'supervisor123', role: 'supervisor', name: 'Supervisor User' },
-      { email: 'worker1@marineplastic.com', password: 'worker123', role: 'worker', name: 'Worker One' },
-      { email: 'demo@marineplastic.com', password: 'demo123', role: 'admin', name: 'Demo User' }
+      { email: 'admin@marineplastic.com', password: 'admin123', role: 'admin', name: 'System Administrator', permissions: ['all'] },
+      { email: 'superadmin@marineplastic.com', password: 'super123', role: 'admin', name: 'Super Admin', permissions: ['all'] },
+      { email: 'supervisor@marineplastic.com', password: 'supervisor123', role: 'supervisor', name: 'Supervisor User', permissions: ['read', 'assign'] },
+      { email: 'worker1@marineplastic.com', password: 'worker123', role: 'worker', name: 'Worker One', permissions: ['read', 'update'] },
+      { email: 'demo@marineplastic.com', password: 'demo123', role: 'admin', name: 'Demo User', permissions: ['all'] }
     ];
 
+    console.log('Available credentials:', defaultCredentials.map(c => ({ email: c.email, password: c.password }))); // Debug log
+
     const matchedUser = defaultCredentials.find(cred => cred.email === email && cred.password === password);
+    
+    console.log('Matched user:', matchedUser); // Debug log
     
     if (matchedUser) {
       const mockUser = {
@@ -133,6 +140,7 @@ router.post('/login', async (req, res, next) => {
         email: matchedUser.email,
         role: matchedUser.role,
         phone: '+1234567890',
+        permissions: matchedUser.permissions || ['read'],
         stats: {
           totalCollections: Math.floor(Math.random() * 50),
           totalWeight: Math.floor(Math.random() * 1000),
@@ -156,6 +164,7 @@ router.post('/login', async (req, res, next) => {
           email: mockUser.email,
           role: mockUser.role,
           phone: mockUser.phone,
+          permissions: mockUser.permissions,
           stats: mockUser.stats
         }
       });
@@ -164,7 +173,7 @@ router.post('/login', async (req, res, next) => {
     // If no match, return error
     return res.status(401).json({
       success: false,
-      message: 'Invalid credentials. Use demo@marineplastic.com / demo123'
+      message: 'Invalid credentials. Available accounts:\nAdmin: admin@marineplastic.com / admin123\nSuper Admin: superadmin@marineplastic.com / super123\nDemo: demo@marineplastic.com / demo123'
     });
   } catch (error) {
     next(error);

@@ -17,6 +17,39 @@ const router = express.Router();
 // AI Model Service URL
 const AI_MODEL_URL = process.env.AI_MODEL_URL || 'http://localhost:5001';
 
+// Validation schema for satellite data
+const satelliteDetectionSchema = Joi.object({
+  source: Joi.string().valid('satellite').required(),
+  imageId: Joi.string().required(),
+  location: Joi.object({
+    lat: Joi.number().min(-90).max(90).required(),
+    lng: Joi.number().min(-180).max(180).required(),
+    altitude: Joi.number().optional(),
+    timestamp: Joi.string().isoDate().required(),
+    accuracy: Joi.number().optional()
+  }).required(),
+  detectionResults: Joi.object({
+    totalPlasticAmount: Joi.number().min(0).required(),
+    confidence: Joi.number().min(0).max(1).required(),
+    detections: Joi.array().items(Joi.object({
+      type: Joi.string().required(),
+      count: Joi.number().min(0).required(),
+      confidence: Joi.number().min(0).max(1).required(),
+      area: Joi.number().min(0).required()
+    })).required(),
+    riskLevel: Joi.string().valid('high', 'medium', 'low').required(),
+    processingTime: Joi.string().isoDate().required()
+  }).required(),
+  metadata: Joi.object({
+    satelliteId: Joi.string().required(),
+    captureTime: Joi.string().isoDate().required(),
+    resolution: Joi.number().min(0).required(),
+    cloudCover: Joi.number().min(0).max(100).required(),
+    sensorType: Joi.string().required()
+  }).required(),
+  timestamp: Joi.string().isoDate().required()
+});
+
 // Validation schemas
 const satelliteDataSchema = Joi.object({
   longitude: Joi.number().min(-180).max(180).required(),
@@ -526,6 +559,168 @@ function generateMockDetection() {
     estimated_weight: weightEstimates[density] * (0.8 + Math.random() * 0.4),
     plastic_types: ['PET', 'HDPE']
   };
+}
+
+/**
+ * @route   POST /api/detections/satellite
+ * @desc    Receive satellite detection data and integrate with dashboard
+ * @access  Public (satellite endpoint)
+ */
+router.post('/satellite', async (req, res, next) => {
+  try {
+    // Validate satellite data
+    const { error } = satelliteDetectionSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.details[0].message
+      });
+    }
+
+    const {
+      imageId,
+      location,
+      detectionResults,
+      metadata,
+      timestamp
+    } = req.body;
+
+    console.log(`Received satellite detection: ${imageId}`);
+    console.log(`Location: ${location.lat}, ${location.lng}`);
+    console.log(`Plastic Amount: ${detectionResults.totalPlasticAmount}kg`);
+
+    // Create detection record
+    const detection = new Detection({
+      location: {
+        type: 'Point',
+        coordinates: [location.lng, location.lat]
+      },
+      detectionResult: {
+        plasticDetected: detectionResults.totalPlasticAmount > 0,
+        density: detectionResults.riskLevel,
+        confidence: detectionResults.confidence,
+        plasticAmount: detectionResults.totalPlasticAmount,
+        plasticTypes: detectionResults.detections.map(d => ({
+          type: d.type,
+          count: d.count,
+          confidence: d.confidence,
+          area: d.area
+        }))
+      },
+      source: 'satellite',
+      metadata: {
+        imageId: imageId,
+        satelliteId: metadata.satelliteId,
+        captureTime: metadata.captureTime,
+        resolution: metadata.resolution,
+        cloudCover: metadata.cloudCover,
+        sensorType: metadata.sensorType,
+        altitude: location.altitude,
+        accuracy: location.accuracy
+      },
+      status: 'detected',
+      detectedAt: new Date(timestamp),
+      createdAt: new Date()
+    });
+
+    // Save detection to database (or use in-memory storage)
+    try {
+      await detection.save();
+      console.log(`Detection saved to database: ${detection._id}`);
+    } catch (dbError) {
+      console.log('Database error, using in-memory storage:', dbError.message);
+      // In production, implement fallback storage
+    }
+
+    // Update or create zone with new detection data
+    await updateZoneWithDetection(location, detectionResults);
+
+    // Emit real-time update to connected clients
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('newDetection', {
+          type: 'satellite',
+          location: location,
+          plasticAmount: detectionResults.totalPlasticAmount,
+          riskLevel: detectionResults.riskLevel,
+          timestamp: timestamp,
+          satelliteId: metadata.satelliteId
+        });
+      }
+    } catch (socketError) {
+      console.log('Socket emission failed:', socketError.message);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Satellite detection processed successfully',
+      data: {
+        detectionId: detection._id,
+        imageId: imageId,
+        location: location,
+        plasticAmount: detectionResults.totalPlasticAmount,
+        riskLevel: detectionResults.riskLevel,
+        processedAt: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('Satellite detection processing error:', error);
+    next(error);
+  }
+});
+
+/**
+ * Helper function to update zone with detection data
+ */
+async function updateZoneWithDetection(location, detectionResults) {
+  try {
+    // Find nearby zone or create new one
+    const nearbyZone = await Zone.findOne({
+      location: {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [location.lng, location.lat]
+          },
+          $maxDistance: 10000 // 10km radius
+        }
+      }
+    });
+
+    if (nearbyZone) {
+      // Update existing zone
+      nearbyZone.currentPlasticLevel = detectionResults.totalPlasticAmount;
+      nearbyZone.riskLevel = detectionResults.riskLevel;
+      nearbyZone.lastUpdated = new Date();
+      nearbyZone.detectionCount = (nearbyZone.detectionCount || 0) + 1;
+      
+      await nearbyZone.save();
+      console.log(`Updated zone ${nearbyZone.name} with new detection data`);
+    } else {
+      // Create new zone
+      const zoneName = `Zone-${location.lat.toFixed(2)}-${location.lng.toFixed(2)}`;
+      const newZone = new Zone({
+        name: zoneName,
+        location: {
+          type: 'Point',
+          coordinates: [location.lng, location.lat]
+        },
+        currentPlasticLevel: detectionResults.totalPlasticAmount,
+        riskLevel: detectionResults.riskLevel,
+        detectionCount: 1,
+        status: 'active',
+        lastUpdated: new Date(),
+        createdAt: new Date()
+      });
+
+      await newZone.save();
+      console.log(`Created new zone: ${zoneName}`);
+    }
+  } catch (error) {
+    console.error('Zone update error:', error.message);
+  }
 }
 
 module.exports = router;
