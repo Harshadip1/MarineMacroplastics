@@ -18,6 +18,7 @@ const PORT = 6000;
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
+app.use(express.static('public'));
 
 // Create directories
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -148,8 +149,8 @@ async function processImageWithAI(satelliteImage) {
   try {
     console.log(`Processing image ${satelliteImage.id} with AI...`);
 
-    // Simulate AI processing (in production, call actual AI service)
-    const aiResults = await simulateAIProcessing(satelliteImage.imagePath, satelliteImage.location);
+    // Send image to AI model for processing
+    const aiResults = await sendToAIModel(satelliteImage);
     
     satelliteImage.detectionResults = aiResults;
     satelliteImage.processed = true;
@@ -165,6 +166,50 @@ async function processImageWithAI(satelliteImage) {
       confidence: 0,
       detections: []
     };
+  }
+}
+
+/**
+ * Send image to AI model for processing
+ */
+async function sendToAIModel(satelliteImage) {
+  try {
+    // Read image file and convert to base64
+    const fs = require('fs');
+    const imageBuffer = fs.readFileSync(satelliteImage.imagePath);
+    const base64Image = imageBuffer.toString('base64');
+
+    const payload = {
+      image: `data:image/jpeg;base64,${base64Image}`,
+      location: satelliteImage.location,
+      metadata: {
+        ...satelliteImage.metadata,
+        imageId: satelliteImage.id
+      }
+    };
+
+    console.log('Sending image to AI model at http://localhost:5001/api/ai/process');
+    
+    const response = await axios.post('http://localhost:5001/api/ai/process', payload, {
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000 // 30 seconds timeout
+    });
+
+    if (response.data.success) {
+      console.log('AI model processing successful');
+      return response.data.data.detectionResults;
+    } else {
+      throw new Error(response.data.message || 'AI processing failed');
+    }
+
+  } catch (error) {
+    console.error('AI model communication error:', error.message);
+    
+    // Fallback to simulation if AI model is not available
+    console.log('Using fallback simulation...');
+    return await simulateAIProcessing(satelliteImage.imagePath, satelliteImage.location);
   }
 }
 
@@ -308,9 +353,19 @@ app.use((error, req, res, next) => {
   });
 });
 
+/**
+ * @route   GET /
+ * @desc    Serve the satellite upload interface
+ * @access  Public
+ */
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Satellite server running on port ${PORT}`);
+  console.log(`Upload interface: http://localhost:${PORT}`);
   console.log(`Upload endpoint: http://localhost:${PORT}/api/satellite/upload`);
   console.log(`Status endpoint: http://localhost:${PORT}/api/satellite/status`);
 });

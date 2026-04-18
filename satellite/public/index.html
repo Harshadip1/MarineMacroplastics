@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Satellite Upload - Marine Plastic Detection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2196F3;
+            margin-bottom: 10px;
+        }
+        .upload-area {
+            border: 3px dashed #2196F3;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9fa;
+            margin-bottom: 30px;
+            cursor: pointer;
+        }
+        .upload-area:hover {
+            background: #e3f2fd;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #2196F3;
+        }
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        .submit-btn:hover {
+            background: #45a049;
+        }
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 5px;
+            display: none;
+        }
+        .result.success {
+            background: #e8f5e8;
+            border-left: 5px solid #4CAF50;
+        }
+        .result.error {
+            background: #ffebee;
+            border-left: 5px solid #f44336;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .status {
+            text-align: center;
+            padding: 10px;
+            background: #e8f5e8;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛰️ Satellite Upload</h1>
+            <p>Marine Plastic Detection System</p>
+        </div>
+
+        <div class="status">
+            <span>✅ Server Online - Ready for Upload</span>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <div style="font-size: 48px; margin-bottom: 20px;">📸</div>
+            <div>Click to select satellite image or drag & drop</div>
+            <div style="color: #666; margin-top: 10px;">Supports: JPEG, PNG, TIFF (Max 50MB)</div>
+            <input type="file" id="fileInput" accept="image/jpeg,image/png,image/tiff" style="display: none;">
+        </div>
+
+        <div class="grid">
+            <div class="form-group">
+                <label for="latitude">Latitude *</label>
+                <input type="number" id="latitude" placeholder="19.0760" step="0.0001" required>
+            </div>
+            <div class="form-group">
+                <label for="longitude">Longitude *</label>
+                <input type="number" id="longitude" placeholder="72.8777" step="0.0001" required>
+            </div>
+            <div class="form-group">
+                <label for="altitude">Altitude (meters)</label>
+                <input type="number" id="altitude" placeholder="400000" value="400000">
+            </div>
+            <div class="form-group">
+                <label for="accuracy">Accuracy (meters)</label>
+                <input type="number" id="accuracy" placeholder="10" value="10">
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="form-group">
+                <label for="satelliteId">Satellite ID</label>
+                <input type="text" id="satelliteId" placeholder="SAT-001" value="SAT-001">
+            </div>
+            <div class="form-group">
+                <label for="resolution">Resolution (meters/pixel)</label>
+                <input type="number" id="resolution" placeholder="0.5" step="0.1" value="0.5">
+            </div>
+            <div class="form-group">
+                <label for="cloudCover">Cloud Cover (%)</label>
+                <input type="number" id="cloudCover" placeholder="10" min="0" max="100" value="10">
+            </div>
+            <div class="form-group">
+                <label for="sensorType">Sensor Type</label>
+                <input type="text" id="sensorType" placeholder="optical" value="optical">
+            </div>
+        </div>
+
+        <div style="margin: 30px 0;">
+            <button class="submit-btn" id="submitBtn" onclick="uploadImage()">
+                Upload & Process Image
+            </button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div>⏳ Processing satellite image with AI...</div>
+        </div>
+
+        <div class="result" id="result">
+            <div id="resultContent"></div>
+        </div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+
+        // Upload area events
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.background = '#e8f5e8';
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.style.background = '#f8f9fa';
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.background = '#f8f9fa';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            if (file.size > 50 * 1024 * 1024) {
+                alert('File size too large. Maximum size is 50MB');
+                return;
+            }
+
+            const validTypes = ['image/jpeg', 'image/png', 'image/tiff'];
+            if (!validTypes.includes(file.type)) {
+                alert('Invalid file type. Please upload JPEG, PNG, or TIFF image');
+                return;
+            }
+
+            selectedFile = file;
+            uploadArea.innerHTML = `
+                <div style="font-size: 48px; margin-bottom: 20px;">✅</div>
+                <div>File Selected: ${file.name}</div>
+                <div style="color: #666; margin-top: 10px;">Size: ${(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                <input type="file" id="fileInput" accept="image/jpeg,image/png,image/tiff" style="display: none;">
+            `;
+            
+            // Re-attach event listener
+            document.getElementById('fileInput').addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFileSelect(e.target.files[0]);
+                }
+            });
+        }
+
+        async function uploadImage() {
+            if (!selectedFile) {
+                alert('Please select an image file');
+                return;
+            }
+
+            const latitude = document.getElementById('latitude').value;
+            const longitude = document.getElementById('longitude').value;
+
+            if (!latitude || !longitude) {
+                alert('Please provide latitude and longitude');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('result').style.display = 'none';
+
+            // Create form data
+            const formData = new FormData();
+            formData.append('image', selectedFile);
+            
+            const locationData = {
+                lat: parseFloat(latitude),
+                lng: parseFloat(longitude),
+                altitude: parseFloat(document.getElementById('altitude').value) || 400000,
+                accuracy: parseFloat(document.getElementById('accuracy').value) || 10,
+                timestamp: new Date().toISOString()
+            };
+            formData.append('location', JSON.stringify(locationData));
+
+            const metadata = {
+                satelliteId: document.getElementById('satelliteId').value || 'SAT-001',
+                captureTime: new Date().toISOString(),
+                resolution: parseFloat(document.getElementById('resolution').value) || 0.5,
+                cloudCover: parseFloat(document.getElementById('cloudCover').value) || 10,
+                sensorType: document.getElementById('sensorType').value || 'optical'
+            };
+            formData.append('metadata', JSON.stringify(metadata));
+
+            try {
+                const response = await fetch('/api/satellite/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                // Hide loading
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('submitBtn').disabled = false;
+
+                // Show result
+                const resultDiv = document.getElementById('result');
+                const resultContent = document.getElementById('resultContent');
+
+                if (result.success) {
+                    resultDiv.className = 'result success';
+                    const data = result.data;
+                    resultContent.innerHTML = `
+                        <h3>✅ Upload Successful!</h3>
+                        <p><strong>Image ID:</strong> ${data.id}</p>
+                        <p><strong>Location:</strong> ${data.location.lat.toFixed(4)}, ${data.location.lng.toFixed(4)}</p>
+                        <p><strong>Plastic Detected:</strong> ${data.detectionResults.totalPlasticAmount} kg</p>
+                        <p><strong>Risk Level:</strong> ${data.detectionResults.riskLevel.toUpperCase()}</p>
+                        <p><strong>Confidence:</strong> ${(data.detectionResults.confidence * 100).toFixed(1)}%</p>
+                        <p><strong>Status:</strong> Sent to Dashboard</p>
+                        <hr>
+                        <p>🎯 <a href="http://localhost:3000" target="_blank">View in Dashboard</a></p>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultContent.innerHTML = `
+                        <h3>❌ Upload Failed</h3>
+                        <p><strong>Error:</strong> ${result.message}</p>
+                    `;
+                }
+
+                resultDiv.style.display = 'block';
+
+            } catch (error) {
+                // Hide loading
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('submitBtn').disabled = false;
+
+                // Show error
+                const resultDiv = document.getElementById('result');
+                resultDiv.className = 'result error';
+                document.getElementById('resultContent').innerHTML = `
+                    <h3>❌ Upload Failed</h3>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                `;
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        // Check server status
+        async function checkServerStatus() {
+            try {
+                const response = await fetch('/api/satellite/status');
+                const status = await response.json();
+                console.log('Server status:', status);
+            } catch (error) {
+                console.error('Server status check failed:', error);
+            }
+        }
+
+        // Initialize
+        checkServerStatus();
+    </script>
+</body>
+</html>

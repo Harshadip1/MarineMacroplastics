@@ -4,6 +4,7 @@ import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import AreaMap from './pages/AreaMap'
 import AreaData from './pages/AreaData'
+import SatelliteUpload from './pages/SatelliteUpload'
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
           <Route path="map" element={<AreaMap />} />
           <Route path="areas" element={<AreaData />} />
         </Route>
+        <Route path="/satellite-upload" element={<SatelliteUpload />} />
       </Routes>
     </Router>
   )

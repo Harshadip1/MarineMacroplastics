@@ -1,6 +1,6 @@
 import React from 'react'
 import { Outlet, NavLink } from 'react-router-dom'
-import { LayoutDashboard, Map, Database, Menu } from 'lucide-react'
+import { LayoutDashboard, Map, Database, Satellite, Menu } from 'lucide-react'
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = React.useState(true)
@@ -9,6 +9,7 @@ const Layout = () => {
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/dashboard/map', icon: Map, label: 'Area Map' },
     { path: '/dashboard/areas', icon: Database, label: 'Area Data' },
+    { path: '/satellite-upload', icon: Satellite, label: 'Satellite Upload' },
   ]
 
   return (
